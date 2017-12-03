@@ -2,18 +2,39 @@ package main
 
 import (
 	"encoding/json"
-	//"github.com/Zamiell/isaac-racing-server/src/log"
+	"github.com/Zamiell/isaac-racing-server/src/log"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
+// TODO
+// Add stream URL for each opponents
+
 func httpUserAPI(c *gin.Context) {
 	// Local variables
 	w := c.Writer
-	type Racer struct {
-		Username   string `json:"user"`
-		TwitchName string `json:"twitchName"`
+
+	// Opponent struct to give information on each
+	type Opponent struct {
+		Username    string `json:"user"`
+		TwitchName  string `json:"twitchName"`
+		ReadyStatus string `json:"readyStatus"`
+		FloorNum    int    `json:"floorNum"`
+		StageType   int    `json:"stageType"`
 	}
+
+	// CurrentOpponents holds all the race info and the map of opponents
+	type CurrentOpponents struct {
+		RaceID     int    `json:"raceid"`
+		RaceName   string `json:"raceName"`
+		RaceStatus string `json:"raceStatus"`
+		Opponents  []Opponent
+	}
+
+	// Needs to be init'd after we define the local structs
+	var opponents []Opponent
+	var opponent Opponent
+	var currentOpponents CurrentOpponents
 
 	// Parse the player name from the URL
 	player := c.Params.ByName("racername")
@@ -22,8 +43,36 @@ func httpUserAPI(c *gin.Context) {
 		return
 	}
 
-	user := []byte(`{"user":"player","twitchName":"player","currentOpponents":[{"name":"Zamiel","twitchName":"Zamiell"},{"name":"Hyphen_ated","twitchname":"Hyphen_ated"}]}`)
+	// Run through all the races
+	for _, raceID := range races {
+		// If we see that the name in the URL is a player in the map, collect info
+		if _, found := raceID.Racers[player]; found {
+			currentOpponents.RaceID = raceID.ID
+			currentOpponents.RaceName = raceID.Name
+			currentOpponents.RaceStatus = raceID.Status
+			for _, racer := range raceID.Racers {
+				// Remove self from the list of opponents
+				if racer.Name != player {
+					opponent.Username = racer.Name
+					opponent.TwitchName = racer.Name
+					opponent.ReadyStatus = racer.Status
+					opponent.FloorNum = racer.FloorNum
+					opponent.StageType = racer.StageType
+					opponents = append(opponents, opponent)
+				}
+			}
+			currentOpponents.Opponents = opponents
+			// We break here because we want to stop looking
+			break
+		}
+	}
 
+	// Once we've gotten the race and opponent info convert it to JSON
+	jsonData, err := json.Marshal(currentOpponents)
+	if err != nil {
+		log.Error("Couldn't generate JSON")
+	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(user)
+	w.Write(jsonData)
+
 }
