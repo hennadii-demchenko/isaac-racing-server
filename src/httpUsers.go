@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/Zamiell/isaac-racing-server/src/log"
 	"github.com/gin-gonic/gin"
-	"net/http"
+	//"net/http"
 )
 
 // TODO
@@ -13,6 +13,8 @@ import (
 func httpUserAPI(c *gin.Context) {
 	// Local variables
 	w := c.Writer
+	// Start serving the header so that we can decide which data to send later
+	w.Header().Set("Content-Type", "application/json")
 
 	// Opponent struct to give information on each
 	type Opponent struct {
@@ -39,7 +41,8 @@ func httpUserAPI(c *gin.Context) {
 	// Parse the player name from the URL
 	player := c.Params.ByName("racername")
 	if player == "" {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		// http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		w.Write([]byte("{\"Error\": \"Please use a racer account\"}"))
 		return
 	}
 
@@ -66,13 +69,13 @@ func httpUserAPI(c *gin.Context) {
 			break
 		}
 	}
-
 	// Once we've gotten the race and opponent info convert it to JSON
-	jsonData, err := json.Marshal(currentOpponents)
+	jsonData, err := json.MarshalIndent(currentOpponents, "", "\t")
 	if err != nil {
 		log.Error("Couldn't generate JSON")
+		w.Write([]byte("Please search for a user"))
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 
 }
