@@ -21,6 +21,7 @@ func httpUserAPI(c *gin.Context) {
 		Username    string `json:"user"`
 		TwitchName  string `json:"twitchName"`
 		ReadyStatus string `json:"readyStatus"`
+		Place       int    `json:"place"`
 		FloorNum    int    `json:"floorNum"`
 		StageType   int    `json:"stageType"`
 	}
@@ -61,6 +62,7 @@ func httpUserAPI(c *gin.Context) {
 					opponent.ReadyStatus = racer.Status
 					opponent.FloorNum = racer.FloorNum
 					opponent.StageType = racer.StageType
+					opponent.Place = racer.Place
 					opponents = append(opponents, opponent)
 				}
 			}
