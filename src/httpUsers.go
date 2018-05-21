@@ -15,29 +15,37 @@ func httpUserAPI(c *gin.Context) {
 	w := c.Writer
 	// Start serving the header so that we can decide which data to send later
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "http://192.168.1.247:81")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 
 	// Opponent struct to give information on each
 	type Opponent struct {
-		Username    string `json:"user"`
-		TwitchName  string `json:"twitchName"`
-		ReadyStatus string `json:"readyStatus"`
-		Place       int    `json:"place"`
-		FloorNum    int    `json:"floorNum"`
-		StageType   int    `json:"stageType"`
+		Username     string  `json:"user"`
+		TwitchName   string  `json:"twitchName"`
+		ReadyStatus  string  `json:"readyStatus"`
+		Place        int     `json:"place"`
+		PlaceMid     int     `json:"placeMid"`
+		FloorNum     int     `json:"floorNum"`
+		StageType    int     `json:"stageType"`
+		Seed         string  `json:"seed"`
+		StartingItem int     `json:"startingItem"`
+		RunTime      int64   `json:"runTime"`
+		Items        []*Item `json:"items"`
 	}
 
-	// CurrentOpponents holds all the race info and the map of opponents
-	type CurrentOpponents struct {
-		RaceID     int    `json:"raceid"`
-		RaceName   string `json:"raceName"`
-		RaceStatus string `json:"raceStatus"`
-		Opponents  []Opponent
+	// CurrentRace holds all the race info and the map of opponents
+	type CurrentRace struct {
+		RaceID          int        `json:"raceID"`
+		RaceName        string     `json:"raceName"`
+		RaceStatus      string     `json:"raceStatus"`
+		Opponents       []Opponent `json:"raceOpponents"`
+		RaceStartedTime int64      `json:"raceStartedTime"`
 	}
 
 	// Needs to be init'd after we define the local structs
 	var opponents []Opponent
 	var opponent Opponent
-	var currentOpponents CurrentOpponents
+	var currentRace CurrentRace
 
 	// Parse the player name from the URL
 	player := c.Params.ByName("racername")
@@ -51,33 +59,42 @@ func httpUserAPI(c *gin.Context) {
 	for _, raceID := range races {
 		// If we see that the name in the URL is a player in the map, collect info
 		if _, found := raceID.Racers[player]; found {
-			currentOpponents.RaceID = raceID.ID
-			currentOpponents.RaceName = raceID.Name
-			currentOpponents.RaceStatus = raceID.Status
+			currentRace.RaceID = raceID.ID
+			currentRace.RaceName = raceID.Name
+			currentRace.RaceStatus = raceID.Status
+			currentRace.RaceStartedTime = raceID.DatetimeStarted
+			// List everyone so that we can set their information
 			for _, racer := range raceID.Racers {
-				// Remove self from the list of opponents
-				if racer.Name != player {
-					opponent.Username = racer.Name
-					opponent.TwitchName = racer.Name
-					opponent.ReadyStatus = racer.Status
-					opponent.FloorNum = racer.FloorNum
-					opponent.StageType = racer.StageType
-					opponent.Place = racer.Place
-					opponents = append(opponents, opponent)
+				streamURL, err := db.Users.GetStreamURL(racer.Name)
+				if err != nil {
+					log.Info("Failed to get streamURL for, '" + player + "', from the database: " + err.Error())
 				}
+				opponent.Username = racer.Name
+				opponent.TwitchName = streamURL
+				opponent.ReadyStatus = racer.Status
+				opponent.FloorNum = racer.FloorNum
+				opponent.StageType = racer.StageType
+				opponent.Place = racer.Place
+				opponent.PlaceMid = racer.PlaceMid
+				opponent.Seed = racer.Seed
+				opponent.StartingItem = racer.StartingItem
+				opponent.RunTime = racer.RunTime
+				opponent.Items = racer.Items
+				opponents = append(opponents, opponent)
 			}
-			currentOpponents.Opponents = opponents
+			currentRace.Opponents = opponents
 			// We break here because we want to stop looking
 			break
 		}
 	}
 	// Once we've gotten the race and opponent info convert it to JSON
-	jsonData, err := json.MarshalIndent(currentOpponents, "", "\t")
+	jsonData, err := json.MarshalIndent(currentRace, "", "\t")
 	if err != nil {
 		log.Error("Couldn't generate JSON")
 		w.Write([]byte("Please search for a user"))
 		return
 	}
+	w.WriteHeaderNow()
 	w.Write(jsonData)
 
 }

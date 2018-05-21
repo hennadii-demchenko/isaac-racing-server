@@ -176,9 +176,12 @@ func httpInit() {
 	httpRouter.GET("/info", httpInfo)
 	httpRouter.GET("/download", httpDownload)
 	httpRouter.GET("/halloffame", httpHallOfFame)
-	httpRouter.GET("/api/", httpDocAPI)
-	httpRouter.GET("/api/currentRace/", httpUserAPI)
-	httpRouter.GET("/api/currentRace/:racername", httpUserAPI)
+	api := httpRouter.Group("/api")
+	{
+		api.GET("/", httpDocAPI)
+		api.GET("/currentRace", httpUserAPI)
+		api.GET("/currentRace/:racername", httpUserAPI)
+	}
 	httpRouter.Static("/public", "../public")
 
 	// Figure out the port that we are using for the HTTP server
